@@ -9,17 +9,16 @@ with open(path.join(PROJECT_ROOT, "README.md"), encoding="utf-8") as f:
 
 requires_base = [
     "rengu >= 6.0",
+    "lmdb",
 ]
-requires_extra = {
-    "dev": ["GitPython", "black"],
-}
+requires_extra = {}
 
 requires_extra["all"] = [m for v in requires_extra.values() for m in v]
 
 setup(
-    name="rengu-scrape",
+    name="rengu-store-lmdb",
     version="6.0",
-    description="Library and tools for managing content fragments with metadata",
+    description="Rengu store for HTTP REST",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     url="https://rengu.io",
@@ -35,8 +34,8 @@ setup(
     extras_require=requires_extra,
     entry_points={
         "rengu_store": [
-            "http =  rengu_rest.store.http:RenguStoreHttp",
-            "https =  rengu_rest.store.http:RenguStoreHttp",
+            "lmr =  rengu_store_lmdb:RenguStoreLmdbRo",
+            "lmw =  rengu_store_lmdb:RenguStoreLmdbRw",
         ]
     },
 )
