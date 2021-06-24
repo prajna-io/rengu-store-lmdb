@@ -230,6 +230,10 @@ class RenguStoreLmdbRo(RenguStore):
                         raise RenguStorageError("Invalid subquery - unmatched )")
                     return result
 
+                # special case of Glob all
+                elif q == "*":
+                    r = self.ResultSet("ID=*", self, txn)
+
                 # standard resultset
                 else:
                     r = self.ResultSet(q, self, txn)
@@ -257,10 +261,7 @@ class RenguStoreLmdbRo(RenguStore):
 
             return result
 
-        if with_data:
-            yield from [self.get(i) for i in _parse()]
-        else:
-            yield from _parse()
+        return _parse()
 
 
 class RenguStoreLmdbRw(RenguStoreLmdbRo):
