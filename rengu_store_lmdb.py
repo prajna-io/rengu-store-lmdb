@@ -2,9 +2,15 @@ import sys
 
 import re
 from fnmatch import fnmatchcase
-from uuid import UUID
+from uuid import UUID, uuid4
 from collections.abc import Set
-from json import loads
+
+try:
+    from orjson import loads, dumps
+except:
+    from json import loads, dumps
+
+from rengu.util.indexer import RenguIndexer
 
 import lmdb
 
@@ -195,7 +201,7 @@ class RenguStoreLmdbRo(RenguStore):
         txn = self.db.begin()
         cursor = txn.cursor(self.data_db)
 
-        return loads(cursor.get(id.bytes).decode())
+        return loads(cursor.get(id.bytes))
 
     def query(
         self, args: list[str], default_operator: str = "&", with_data: bool = False
@@ -265,4 +271,31 @@ class RenguStoreLmdbRo(RenguStore):
 
 
 class RenguStoreLmdbRw(RenguStoreLmdbRo):
-    pass
+    def save(self, obj: dict) -> UUID:
+
+        indexer = RenguIndexer()
+
+        # Set new UUID if none exists
+        id = UUID(obj.get("ID")) or uuid4()
+
+        with self.db.begin(write=True, db=self.data_db) as data_txn:
+
+            data_txn.put(id.bytes, dumps(dict(obj)))
+
+            for key, value in indexer.index(obj):
+                with self.db.begin(
+                    write=True, db=self.index_db, parent=data_txn
+                ) as index_txn:
+
+                    if key and value:
+                        term = f"{key}={value}"
+                    else:
+                        term = value
+
+                    term = term[:255].encode()
+                    try:
+                        index_txn.put(term, id.bytes, dupdata=True)
+                    except lmdb.BadValsizeError:
+                        print(f"Invalid term {term} for {key} and {value} in {id}")
+                        raise
+        return id
