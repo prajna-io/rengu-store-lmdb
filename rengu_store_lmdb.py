@@ -271,6 +271,29 @@ class RenguStoreLmdbRo(RenguStore):
 
 
 class RenguStoreLmdbRw(RenguStoreLmdbRo):
+    def delete(self, ID: UUID):
+
+        indexer = RenguIndexer()
+
+        with self.db.begin(write=True, db=self.data_db) as data_txn:
+
+            obj = self.get(ID)
+
+            with self.db.begin(
+                write=True, db=self.index_db, parent=data_txn
+            ) as index_txn:
+
+                for key, value in indexer.index(obj):
+                    if key and value:
+                        term = f"{key}={value}"
+                    else:
+                        term = value
+
+                    term = term[:255].encode()
+                    index_txn.delete(term, ID.bytes)
+
+            data_txn.delete(ID.bytes)
+
     def save(self, obj: dict) -> UUID:
 
         indexer = RenguIndexer()
