@@ -195,13 +195,13 @@ class RenguStoreLmdbRo(RenguStore):
                 result=self.seen ^ other.seen,
             )
 
-    def get(self, id: UUID):
-        """Get detail for the specified id"""
+    def get(self, ID: UUID):
+        """Get detail for the specified ID"""
 
         txn = self.db.begin()
         cursor = txn.cursor(self.data_db)
 
-        return loads(cursor.get(id.bytes))
+        return loads(cursor.get(ID.bytes))
 
     def query(
         self, args: list[str], default_operator: str = "&", with_data: bool = False
@@ -276,11 +276,11 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
         indexer = RenguIndexer()
 
         # Set new UUID if none exists
-        id = UUID(obj.get("ID")) or uuid4()
+        ID = UUID(obj.get("ID")) or uuid4()
 
         with self.db.begin(write=True, db=self.data_db) as data_txn:
 
-            data_txn.put(id.bytes, dumps(dict(obj)))
+            data_txn.put(ID.bytes, dumps(dict(obj)))
 
             for key, value in indexer.index(obj):
                 with self.db.begin(
@@ -294,8 +294,8 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
 
                     term = term[:255].encode()
                     try:
-                        index_txn.put(term, id.bytes, dupdata=True)
+                        index_txn.put(term, ID.bytes, dupdata=True)
                     except lmdb.BadValsizeError:
-                        print(f"Invalid term {term} for {key} and {value} in {id}")
+                        print(f"Invalid term {term} for {key} and {value} in {ID}")
                         raise
-        return id
+        return ID
