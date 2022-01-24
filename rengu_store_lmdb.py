@@ -1,9 +1,9 @@
-import sys
-
 import re
 from fnmatch import fnmatchcase
 from uuid import UUID, uuid4
 from collections.abc import Set
+from struct import pack, unpack
+from typing import List
 
 try:
     from orjson import loads, dumps
@@ -19,6 +19,15 @@ from rengu.store import RenguStore, RenguStorageError
 
 # Regex matches
 RE_GLOB = re.compile(r"[\*\?\[]")
+
+
+def unpack_index(value: str) -> List[UUID, int, int, int]:
+
+    if len(value) == 16:
+        return UUID(bytes=value), 0, 0, 0
+    else:
+        value, block, line, word = unpack("16s3i")
+        return UUID(bytes=value), block, line, word
 
 
 class RenguStoreLmdbRo(RenguStore):
@@ -202,6 +211,22 @@ class RenguStoreLmdbRo(RenguStore):
         cursor = txn.cursor(self.data_db)
 
         return loads(cursor.get(ID.bytes))
+
+    def debug(self, ID: UUID):
+
+        with self.db.begin() as data_txn:
+            cursor = data_txn.cursor(self.data_db)
+
+            data = loads(cursor.get(ID.bytes))
+
+        with self.db.begin(db=self.index_db) as index_txn:
+            index = {
+                key.decode(): unpack_index(value)
+                for key, value in index_txn.cursor()
+                if value.startswith(ID.bytes)
+            }
+
+        return {"data": data, "index": index}
 
     def query(
         self, args: list[str], default_operator: str = "&", with_data: bool = False
