@@ -304,10 +304,13 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
 
     def save(self, obj: dict) -> UUID:
 
-        indexer = RenguIndexer()
+        if not self.validate(obj):
+            raise RenguStorageError("Invalid rengu data")
 
         # Set new UUID if none exists
         ID = UUID(obj.get("ID")) or uuid4()
+
+        indexer = RenguIndexer()
 
         with self.db.begin(write=True, db=self.data_db) as data_txn:
 
