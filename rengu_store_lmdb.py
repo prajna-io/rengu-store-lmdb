@@ -9,8 +9,6 @@ try:
 except:
     from json import loads, dumps
 
-from rengu.util.indexer import RenguIndexer
-
 import lmdb
 
 from rengu.store import RenguStore, RenguStorageError
@@ -20,13 +18,16 @@ from rengu.store import RenguStore, RenguStorageError
 RE_GLOB = re.compile(r"[\*\?\[]")
 
 
-def unpack_index(value: str) -> tuple[UUID, int, int, int]:
+def pack_index(ID: UUID, index: int) -> str:
+    return pack("16s1q", ID.bytes, index)
+
+def unpack_index(value: str) -> tuple[UUID, int]:
 
     if len(value) == 16:
         return UUID(bytes=value), 0, 0, 0
     else:
-        value, block, line, word = unpack("16s3i")
-        return UUID(bytes=value), block, line, word
+        value, index = unpack("16s1q")
+        return UUID(bytes=value),index
 
 
 class RenguStoreLmdbRo(RenguStore):
@@ -281,8 +282,6 @@ class RenguStoreLmdbRo(RenguStore):
 class RenguStoreLmdbRw(RenguStoreLmdbRo):
     def delete(self, ID: UUID):
 
-        indexer = RenguIndexer()
-
         with self.db.begin(write=True, db=self.data_db) as data_txn:
 
             obj = self.get(ID)
@@ -291,13 +290,10 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
                 write=True, db=self.index_db, parent=data_txn
             ) as index_txn:
 
-                for key, value in indexer.index(obj):
-                    if key and value:
-                        term = f"{key}={value}"
-                    else:
-                        term = value
-
+                # Delete regardless of index
+                for term, _ in self.index(obj):
                     term = term[:255].encode()
+                    
                     index_txn.delete(term, ID.bytes)
 
             data_txn.delete(ID.bytes)
@@ -310,21 +306,14 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
         # Set new UUID if none exists
         ID = UUID(obj.get("ID")) or uuid4()
 
-        indexer = RenguIndexer()
-
         with self.db.begin(write=True, db=self.data_db) as data_txn:
 
             data_txn.put(ID.bytes, dumps(dict(obj)))
 
-            for key, value in indexer.index(obj):
+            for term, index in self.index(obj):
                 with self.db.begin(
                     write=True, db=self.index_db, parent=data_txn
                 ) as index_txn:
-
-                    if key and value:
-                        term = f"{key}={value}"
-                    else:
-                        term = value
 
                     term = term[:255].encode()
                     try:
