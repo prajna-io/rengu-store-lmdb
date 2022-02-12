@@ -7,7 +7,12 @@ from struct import pack, unpack
 try:
     from orjson import loads, dumps
 except:
-    from json import loads, dumps
+    from json import loads
+    from json import dumps as _dumps
+
+    def dumps(obj):
+        return _dumps(obj).encode()
+
 
 import lmdb
 
@@ -21,13 +26,14 @@ RE_GLOB = re.compile(r"[\*\?\[]")
 def pack_index(ID: UUID, index: int) -> str:
     return pack("16s1q", ID.bytes, index)
 
+
 def unpack_index(value: str) -> tuple[UUID, int]:
 
     if len(value) == 16:
         return UUID(bytes=value), 0, 0, 0
     else:
         value, index = unpack("16s1q")
-        return UUID(bytes=value),index
+        return UUID(bytes=value), index
 
 
 class RenguStoreLmdbRo(RenguStore):
@@ -35,7 +41,7 @@ class RenguStoreLmdbRo(RenguStore):
 
         path = name.split(":", 1)[1]
 
-        self.db = lmdb.open(path, max_dbs=4, map_size=2 ** 40 - 1)
+        self.db = lmdb.open(path, max_dbs=4, map_size=2**40 - 1)
 
         self.index_db = self.db.open_db("index".encode(), dupsort=True)
         self.data_db = self.db.open_db("data".encode())
@@ -293,7 +299,7 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
                 # Delete regardless of index
                 for term, _ in self.index(obj):
                     term = term[:255].encode()
-                    
+
                     index_txn.delete(term, ID.bytes)
 
             data_txn.delete(ID.bytes)
@@ -319,6 +325,6 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
                     try:
                         index_txn.put(term, ID.bytes, dupdata=True)
                     except lmdb.BadValsizeError:
-                        print(f"Invalid term {term} for {key} and {value} in {ID}")
+                        print(f"Invalid term {term} in {ID}")
                         raise
         return ID
