@@ -210,6 +210,11 @@ class RenguStoreLmdbRo(RenguStore):
                 result=self.seen ^ other.seen,
             )
 
+    def __len__(self):
+        txn = self.db.begin()
+        cursor = txn.cursor(self.data_db)
+        return len(list(cursor))
+
     def get(self, ID: UUID):
         """Get detail for the specified ID"""
 
