@@ -220,8 +220,11 @@ class RenguStoreLmdbRo(RenguStore):
 
         txn = self.db.begin()
         cursor = txn.cursor(self.data_db)
-
-        return loads(cursor.get(ID.bytes))
+        obj = cursor.get(ID.bytes)
+        if obj:
+            return loads(obj)
+        else:
+            return {}
 
     def query(
         self, args: list[str], default_operator: str = "&", with_data: bool = False
