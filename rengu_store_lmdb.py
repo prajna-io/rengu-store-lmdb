@@ -1,23 +1,20 @@
 import re
-from fnmatch import fnmatchcase
-from uuid import UUID, uuid4
 from collections.abc import Set
+from fnmatch import fnmatchcase
 from struct import pack, unpack
+from uuid import UUID, uuid4
 
 try:
-    from orjson import loads, dumps
+    from orjson import dumps, loads
 except:
-    from json import loads
-    from json import dumps as _dumps
+    from json import dumps as _dumps, loads
 
     def dumps(obj):
         return _dumps(obj).encode()
 
 
 import lmdb
-
-from rengu.store import RenguStore, RenguStorageError
-
+from rengu.store import RenguStorageError, RenguStore
 
 # Regex matches
 RE_GLOB = re.compile(r"[\*\?\[]")
@@ -43,8 +40,8 @@ class RenguStoreLmdbRo(RenguStore):
 
         self.db = lmdb.open(path, max_dbs=4, map_size=2**40 - 1)
 
-        self.index_db = self.db.open_db("index".encode(), dupsort=True)
-        self.data_db = self.db.open_db("data".encode())
+        self.index_db = self.db.open_db(b"index", dupsort=True)
+        self.data_db = self.db.open_db(b"data")
 
     class ResultSet(Set):
         def __init__(

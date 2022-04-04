@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from os import environ
 import sys
 from json import loads
+from os import environ
 from pprint import pprint
 
 from rengu_store_lmdb import RenguStoreLmdbRo, unpack_index
