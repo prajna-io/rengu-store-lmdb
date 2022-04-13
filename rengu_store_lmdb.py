@@ -321,10 +321,11 @@ class RenguStoreLmdbRw(RenguStoreLmdbRo):
 
             data_txn.put(ID.bytes, dumps(dict(obj)))
 
-            for term, index in self.index(obj):
-                with self.db.begin(
-                    write=True, db=self.index_db, parent=data_txn
-                ) as index_txn:
+            with self.db.begin(
+                write=True, db=self.index_db, parent=data_txn
+            ) as index_txn:
+
+                for term, index in self.index(obj):
 
                     term = term[:255].encode()
                     try:
